@@ -91,6 +91,10 @@ Time-weighted returns would need a valuation around every cash flow, which daily
 - Transferred shares (opening balances with a `price`) become a `buy` plus a matching `$CASH` deposit, so cash is unchanged. Without a `price`, the export fails.
 - Output is byte-for-byte stable. TradingView's merge import only skips rows whose six fields match exactly, so a re-upload doesn't create duplicates.
 
+## API
+
+`axum`, with every route except `/health` and `/openapi.json` behind a constant-time bearer-token check. The OpenAPI spec is generated from the handlers and types with `utoipa`, so it can't drift from the code; a test checks that every response has a description and every schema reference resolves.
+
 ## Storage
 
 SQLite in WAL mode via `sqlx`, with compile-time checked queries and offline metadata in `.sqlx/`. The schema is in [`migrations/`](../migrations/).

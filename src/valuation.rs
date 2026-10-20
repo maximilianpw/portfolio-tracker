@@ -38,14 +38,14 @@ pub struct Ledger {
     names: BTreeMap<String, String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, utoipa::ToSchema)]
 pub struct PricePoint {
     pub price: Decimal,
     pub date: NaiveDate,
     pub stale: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, utoipa::ToSchema)]
 pub struct PositionValue {
     pub account: Account,
     pub isin: String,
@@ -65,7 +65,7 @@ pub struct Valuation {
     pub complete: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, utoipa::ToSchema)]
 pub struct PeriodChange {
     pub start: NaiveDate,
     pub end: NaiveDate,
@@ -81,7 +81,7 @@ pub struct PeriodChange {
     pub complete: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, utoipa::ToSchema)]
 pub struct Mover {
     pub account: Account,
     pub isin: String,

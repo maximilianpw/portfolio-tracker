@@ -146,7 +146,7 @@ Trade Republic often imports transferred positions without a buy price, so the t
 
 ## API
 
-All endpoints except `/health` need `Authorization: Bearer <token>`.
+All endpoints except `/health` and `/openapi.json` need `Authorization: Bearer <token>`.
 
 | Endpoint | Returns |
 | --- | --- |
@@ -157,6 +157,10 @@ All endpoints except `/health` need `Authorization: Bearer <token>`.
 | `GET /transactions?since=…&kind=…&account=…` | Ledger entries. |
 
 Every response is `{as_of, last_sync, complete, reconciliation, data}`. When `complete` is false (a reconciliation issue, a missing or stale price, a negative balance), treat the numbers as indicative only.
+
+### For AI agents
+
+`GET /openapi.json` describes the API: an OpenAPI 3.1 spec with operation IDs (`get_positions`, `get_summary`, `get_movers`, `get_dividends`, `get_transactions`), parameter choices and a bearer security scheme. Tools that accept OpenAPI can turn it into callable tools directly. For example, in [Executor](https://github.com/UsefulSoftwareCo/executor), add an OpenAPI integration with the spec URL and bearer auth with your token; any MCP client connected to Executor can then use it, and the tracker itself doesn't need to be reachable from the internet.
 
 ## Commands
 

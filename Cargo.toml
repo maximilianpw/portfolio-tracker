@@ -1,6 +1,6 @@
 [package]
 name = "portfolio-tracker"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.94"
 license = "MIT"
@@ -26,6 +26,7 @@ tokio-tungstenite = { version = "0.30.0", features = ["rustls-tls-webpki-roots"]
 toml = "1.1.8"
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+utoipa = { version = "6.0.0", features = ["axum_extras", "chrono", "decimal"] }
 webpki-roots = "1"
 
 [dev-dependencies]

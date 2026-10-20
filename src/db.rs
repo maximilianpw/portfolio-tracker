@@ -464,7 +464,7 @@ pub async fn load_latest_snapshots(
     Ok(snapshots.into_iter().collect())
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, utoipa::ToSchema)]
 pub struct ReconciliationIssue {
     pub account: Account,
     pub isin: Option<String>,
