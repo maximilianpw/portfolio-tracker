@@ -1,0 +1,6 @@
+/target
+/result
+/.direnv
+
+# pytr exports and spike output hold real financial data
+/spike
