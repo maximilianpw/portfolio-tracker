@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO prices (isin, date, price, currency, basis, observed_at, venue, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?)\n         ON CONFLICT (isin, date) DO UPDATE SET price = excluded.price, currency = excluded.currency, basis = excluded.basis,\n             observed_at = excluded.observed_at, venue = excluded.venue, source = excluded.source",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 8
+    },
+    "nullable": []
+  },
+  "hash": "c409ba4b86293643f295c4d998dfafc31dc70a9b55a9557964c653ce08c538df"
+}

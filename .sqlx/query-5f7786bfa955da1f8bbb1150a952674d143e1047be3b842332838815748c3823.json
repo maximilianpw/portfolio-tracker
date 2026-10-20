@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO transactions (event_id, leg, account, ts, date, isin, kind, quantity, price, amount, fee, tax, saving_plan, status)\n                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 14
+    },
+    "nullable": []
+  },
+  "hash": "5f7786bfa955da1f8bbb1150a952674d143e1047be3b842332838815748c3823"
+}

@@ -1,187 +1,196 @@
 # portfolio-tracker
 
-A self-hosted, read-only tracker for my Trade Republic account. It runs on the homelab and is deployed with Nix.
+A self-hosted, read-only tracker for a [Trade Republic](https://traderepublic.com) account. Every day it pulls your transaction history and holdings, keeps them in a local SQLite database, values the portfolio, writes CSVs you can import into [TradingView Portfolios](https://www.tradingview.com/support/solutions/43000760937-tradingview-portfolios-track-your-assets-know-your-trades/), and serves a small JSON API, for example for a bot that sends you a weekly summary.
 
-> Status: planning. This README is the plan; there is no implementation yet.
+> **Unofficial.** Not affiliated with or endorsed by Trade Republic. It talks to Trade Republic's undocumented API through [pytr](https://github.com/pytr-org/pytr) and a small client of its own, so it can break whenever Trade Republic changes something, and automated access may conflict with their terms. It only ever reads: there is no code path that places orders, changes savings plans or moves money. Use at your own risk.
 
-## Goals
+## What it does
 
-- Pull holdings and transactions from Trade Republic automatically, on a schedule.
-- Keep a local history I own: positions, cash, transactions, dividends.
-- Track daily market value per holding, so the bot can report value changes and top movers.
-- Use [TradingView Portfolios](https://www.tradingview.com/support/solutions/43000760937-tradingview-portfolios-track-your-assets-know-your-trades/) as the dashboard: generate a CSV it can import, so it handles prices, value over time and charts.
-- Expose a small read-only API so a Grok Bot can send daily or weekly summaries and cross-check news on my holdings.
-- Be reproducible: one NixOS module, declarative config, secrets out of Git.
+- **Full history:** every trade, dividend, interest payment, deposit, fee and tax, with exact decimal amounts.
+- **Both accounts:** the regular account and a PEA (Trade Republic's French tax wrapper), kept apart.
+- **Reconciliation:** checks the history against what Trade Republic reports each day, so gaps don't go unnoticed.
+- **Corrections:** a reviewed file for what the history doesn't show, such as shares transferred in from another bank.
+- **Valuation:** daily value, change over a period (net of deposits and withdrawals), and top movers.
+- **TradingView:** import CSVs, one per account.
+- **API:** read-only, token-protected; every response says how fresh and complete its numbers are.
 
-## Non-goals
+## Quick start
 
-- No trading, order placement, or any write action against Trade Republic. Ever.
-- No custom dashboard UI for now. TradingView covers charts.
-- No multi-user support, no public exposure. Homelab and tailnet only.
-- No tax reporting engine (exports are fine; tax logic is not).
-- No time-weighted or money-weighted returns for now. See [Valuation](#valuation).
-- No real-time quotes. One price per holding per day is enough.
+With Nix:
 
-## Architecture
-
-```mermaid
-flowchart LR
-  TR[Trade Republic] -->|pytr timeline + portfolio| ING[Ingestion]
-  ING --> RAW[Raw event JSON]
-  RAW --> IMP[Importer]
-  IMP --> DB[(SQLite)]
-  TR -->|pytr rates| PRC[Price collection]
-  HIST[Historical price API<br/>optional backfill] -.-> PRC
-  PRC --> DB
-  DB --> CSV[TradingView CSV export]
-  CSV -->|manual upload| TV[TradingView Portfolios]
-  DB --> API[Read-only API]
-  API --> BOT[Grok Bot<br/>summaries + news cross-check]
+```sh
+nix develop
+pytr login --store_credentials --v2     # once; confirm in the Trade Republic app
+cargo run -- sync                       # fetch, import, reconcile, collect prices
+cargo run -- summary --period week      # value, change and movers as JSON
 ```
 
-One daily sync job runs the steps in order: ingestion, import, reconciliation, price collection, CSV export. One job means pytr runs never overlap, and Trade Republic sees one session per day.
+Without Nix: install Rust 1.94+ and pytr (`pip install pytr==0.4.10`), then use the same commands.
 
-1. **Ingestion.** [pytr](https://github.com/pytr-org/pytr) (unofficial Trade Republic client) fetches the timeline and the current portfolio. The Rust app calls it as a subprocess with a timeout and keeps the raw timeline event JSON (`all_events.json`). The simplified `export_transactions` CSV is not enough: it drops event IDs, and one event can produce several postings.
-2. **Importer.** Parses the raw events with `serde` into typed events and writes them to SQLite in one transaction. Imports are idempotent: rows are keyed by event ID plus leg, so re-running over the same export changes nothing. Events that Trade Republic revises are updated in place; cancelled ones are marked cancelled, never deleted. Event types the importer doesn't recognise fail the import with the raw event attached, instead of being skipped. The importer only reads files, so pytr can be swapped or the exports replayed.
-3. **Reconciliation.** Derives holdings and cash from transactions and compares them with what pytr reports. A mismatch raises an alert and marks the day incomplete.
-4. **Price collection.** Records one price per held ISIN per day. See [Prices](#prices).
-5. **TradingView export.** Writes the full transaction history as a CSV in [TradingView's import format](https://www.tradingview.com/support/solutions/43000756010-how-to-create-a-portfolio-via-transaction-import/). I upload it by hand into a TradingView portfolio.
-6. **API and bot hook.** Read-only JSON endpoints (`/positions`, `/summary?period=week`, `/movers?period=week`, `/dividends`, `/transactions`) behind a token, so a bot can build summaries and look up news per holding. Every response includes `as_of`, the last successful sync and a `complete` flag, so a failed sync can't pass for current data.
-7. **Read-only scope.** Nothing in the system can place or cancel orders.
+If `sync` reports reconciliation issues, see [Corrections](#corrections).
 
-### TradingView import
+## Hosting
 
-- Columns: `Symbol, Side, Qty, Fill Price, Commission, Closing Time`, comma-separated, with a header row. One bad line rejects the whole file.
-- `Symbol` is `EXCHANGE:TICKER` (e.g. `XETR:VWCE`), taken from the [instrument mapping](#instrument-mapping). TradingView has no ISIN lookup on import.
-- Instrument sides: `buy`, `sell`, `dividend`, `split`, `reward`. Cash rows use symbol `$CASH` with `deposit`, `withdrawal`, `income` (interest), `taxes and fees`.
-- Field meanings differ by side:
-  - `dividend`: `Qty` is the total amount paid, not a share count. `Fill Price` and `Commission` are ignored.
-  - `split`: `Qty` is the quantity before the split, `Fill Price` the quantity after.
-  - Cash rows: `Qty` is the amount, in the portfolio currency (EUR).
-- `Closing Time`: `YYYY-MM-DD hh:mm:ss` or `YYYY-MM-DDTHH:mm:ss.sssZ`. Use the event timestamp so rows stay distinct.
-- Import merges by default and skips rows whose six fields match exactly. The export must be deterministic (stable rounding, timestamps, ordering), or a re-upload creates duplicates. Two genuine transactions with identical fields would also be merged into one; Phase 0 checks whether that happens in practice. For corrections, use replace mode.
-- TradingView can [download all transactions as CSV](https://www.tradingview.com/support/solutions/43000756105-transactions-page/), useful for a round-trip check. There is no public portfolio API, so uploads stay manual and the bot reads from the local DB.
-- The number of transactions a portfolio can hold depends on the TradingView plan. Saving plans and dividends add rows every month.
+It needs a machine that's always on: pytr is a Python program, the session lives on disk, and the data is a SQLite file. A home server, a NAS or a small VPS all work.
 
-### Prices
+### NixOS
 
-Prices come from providers behind a `PriceSource` trait, so they can be swapped.
+```nix
+# flake.nix
+inputs.portfolio-tracker.url = "github:maximilianpw/portfolio-tracker";
 
-- **Daily: pytr `rates`.** Fetches prices from Trade Republic by ISIN, so no ticker mapping is needed. It returns the latest quote from the first venue that answers, not an official close, and an ISIN with no quote can be missing from the output. The sync runs at a fixed time after Trade Republic's venue (LS Exchange) closes at 23:00 Berlin, so each day's price is taken at the same cutoff.
-- **Backfill: optional, no provider chosen.** Free tiers don't cover this well: [Twelve Data](https://twelvedata.com/exchanges/xetr) needs a paid plan for Xetra, and [EODHD](https://eodhd.com/pricing) free only goes back one year (20 calls/day). Without backfill, local value history starts with the first sync; TradingView still shows the long-term chart. If a provider is added, its prices fill only the days before collection started, so one day never mixes a TR quote with another provider's close.
+# configuration.nix
+imports = [ inputs.portfolio-tracker.nixosModules.default ];
+services.portfolio-tracker = {
+  enable = true;
+  tokenFile = "/run/secrets/portfolio-tracker-token";      # API token, 16+ characters (sops-nix, agenix, …)
+  credentialsFile = "/run/secrets/pytr-credentials";       # optional: phone number and PIN on two lines
+  correctionsFile = ./corrections.toml;                     # optional
+  instrumentsFile = ./instruments.toml;                     # optional, enables the TradingView CSVs
+  onFailure = [ "notify-failure@%n.service" ];             # optional alerting unit
+};
+```
 
-Rules:
+This gives you an API service on `127.0.0.1:8787` and a daily sync at 23:15 Berlin time. Both run as a hardened `portfolio-tracker` user, with state in `/var/lib/portfolio-tracker`. After the first deploy:
 
-- Every price records `basis` (`last` or `close`), `observed_at`, `venue`, `currency` and `source`.
-- A missing price carries forward the last known one for up to 3 trading days, marked stale. After that the holding has no value for the day and the day is marked incomplete.
-- Prices in a currency other than EUR are rejected until FX conversion exists. pytr quotes in EUR, so this only matters for a backfill provider.
+```sh
+sudo portfolio-tracker-login               # pytr login as the service user; confirm in the app
+sudo systemctl start portfolio-tracker-sync
+```
 
-### Valuation
+### Docker or Podman
 
-- **Portfolio value** on a day = sum of (quantity held × that day's price) + cash.
-- **Period change** = end value − start value − net external flows (deposits − withdrawals).
-  - Deposits and withdrawals are not gains or losses.
-  - Buys and sells move money between cash and securities and don't change the value.
-  - Dividends and interest count as gains; fees and taxes count as losses.
-- **Per-holding change** (for `/movers`) = price change × quantity, with buys and sells during the period counted at their execution price.
-- No result is shown for a period with an incomplete day or a stale price beyond the carry-forward limit. The API returns `complete: false` instead.
-- Time-weighted return needs a valuation around every cash flow, which daily prices can't give. Add it later only if the simple period change turns out not to be enough.
+```sh
+docker build -t portfolio-tracker .
+docker volume create pt-data
+docker run --rm -it -v pt-data:/data portfolio-tracker pytr login --store_credentials --v2
+docker run --rm -v pt-data:/data portfolio-tracker sh -c 'head -c 32 /dev/urandom | base64 > /data/token'
+docker run -d --restart unless-stopped --name portfolio-tracker \
+  -v pt-data:/data -p 127.0.0.1:8787:8787 portfolio-tracker
+```
 
-### Instrument mapping
+Then schedule the daily sync, for example with cron:
 
-A small file in the repo, `instruments.toml`, maps each ISIN to its symbol for each consumer: the TradingView symbol, and the backfill provider's ticker if one is added. Each entry also records the venue and quote currency, since one ISIN can trade on several exchanges in several currencies. The CSV export and the backfill fail with a clear error for any held ISIN without an entry, rather than guessing.
+```cron
+15 23 * * * docker run --rm -v pt-data:/data portfolio-tracker portfolio-tracker sync
+```
 
-### Known risks with pytr
+For corrections or TradingView exports, copy the files into the volume and add `-e PT_CORRECTIONS=/data/corrections.toml -e PT_INSTRUMENTS=/data/instruments.toml` to both commands.
 
-- It is unofficial and reverse-engineered; it can break whenever Trade Republic changes its API.
-- Login needs occasional confirmation on the phone (device pairing / 2FA), so ingestion can't be fully unattended forever. Re-authenticating means running `pytr login` by hand as the service user; the steps go in the README once known.
-- Using it may sit in a grey area of Trade Republic's terms. Keep request volume low.
+### Plain binary
 
-Mitigations: a timeout on every pytr call, a few retries with backoff and then a failure, an alert when the sync fails or the session expires, raw exports kept so a later importer can replay them, and the importer kept separate from pytr so the client can be swapped.
+```sh
+cargo install --git https://github.com/maximilianpw/portfolio-tracker
+pip install pytr==0.4.10
+pytr login --store_credentials --v2
+portfolio-tracker --data-dir ~/.local/share/portfolio-tracker sync   # schedule this daily
+```
 
-## Data model sketch
+### Cloudflare
 
-Money and quantities are exact decimals (`rust_decimal` in code, text in SQLite), never floats; fractional shares are normal on Trade Republic. Trade Republic settles everything in EUR, so transaction amounts are EUR.
+A Cloudflare Worker can't run this: it has no Python, no local files and no long-running process. What works well is running it on any of the machines above and exposing only the API through a [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/), with [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/) in front:
 
-| Table | Key columns |
+```sh
+cloudflared tunnel --url http://localhost:8787    # quick test; use a named tunnel for real
+```
+
+For a bot, create an Access service token and send its `CF-Access-Client-Id` and `CF-Access-Client-Secret` headers along with the API's own bearer token. Tailscale or a reverse proxy on your LAN work just as well.
+
+## Configuration
+
+| Variable | Flag | Meaning |
+| --- | --- | --- |
+| `PT_DATA_DIR` | `--data-dir` | Database, pytr exports, snapshots and CSVs. Default `./data`. |
+| `PT_CORRECTIONS` | `--corrections` | Corrections file. |
+| `PT_INSTRUMENTS` | `--instruments` | ISIN → TradingView symbol mapping. |
+| `PT_PYTR` | `--pytr` | pytr executable. Default `pytr`. |
+| `PT_PYTR_COOKIES` | `--cookies` | pytr cookie jar. Default: the single `~/.pytr/cookies.*.txt`. |
+| `PT_LISTEN` | `--listen` | API address. Default `127.0.0.1:8787`. |
+| `PT_TOKEN_FILE` | `--token-file` | File containing the API bearer token. |
+
+### Corrections
+
+Trade Republic's history leaves some things out, notably securities and cash transferred in from another bank. When that happens, `sync` reports reconciliation issues and figures are marked incomplete.
+
+`portfolio-tracker corrections-template > corrections.toml` proposes entries that close the gaps:
+- holdings that existed before the history starts become opening balances;
+- anything else becomes an adjustment dated today.
+
+Review the file, set real dates where you know them, and point `PT_CORRECTIONS` at it.
+
+```toml
+[[correction]]
+account = "pea"
+date = 2025-03-03
+kind = "opening_balance"      # or "adjustment"
+isin = "DE0005557508"         # securities: isin + quantity
+quantity = "6"
+price = "21.50"               # optional cost per share, only used for TradingView
+note = "Transferred from my old bank"
+
+[[correction]]
+account = "pea"
+date = 2025-03-03
+kind = "opening_balance"
+amount = "1000.00"            # cash
+note = "Cash that came with the transfer"
+```
+
+Trade Republic often imports transferred positions without a buy price, so the template never fills in `price`. Values and period changes don't need it. The TradingView export does, and refuses to run until it's set; `price = "0"` reproduces what the Trade Republic app shows.
+
+### TradingView
+
+1. Run `portfolio-tracker instruments-template > instruments.toml`, then fill in each `tradingview` symbol (`EXCHANGE:TICKER`, e.g. `XETR:SAP`). See [`instruments.example.toml`](instruments.example.toml).
+2. Set `PT_INSTRUMENTS`. Every sync then writes `tradingview/regular.csv` and `tradingview/pea.csv` in the data directory.
+3. Import them in TradingView under Portfolios → Upload CSV. Re-uploading is safe: the files are byte-for-byte stable, and TradingView skips rows it already has.
+
+## API
+
+All endpoints except `/health` need `Authorization: Bearer <token>`.
+
+| Endpoint | Returns |
 | --- | --- |
-| `instruments` | `isin` (PK), `name`, `type` (stock, ETF, crypto, bond) |
-| `transactions` | (`event_id`, `leg`) PK, `ts`, `isin` (null for cash), `kind`, `quantity`, `price`, `amount`, `fee`, `tax`, `saving_plan` (bool), `status` (active, cancelled), `raw_json` |
-| `positions_snapshots` | `snapshot_date`, `isin`, `quantity`, `avg_cost` |
-| `cash_snapshots` | `snapshot_date`, `balance` |
-| `prices` | (`isin`, `date`) PK, `price`, `currency`, `basis`, `observed_at`, `venue`, `source`, `stale` (bool) |
-| `sync_runs` | `id`, `started_at`, `finished_at`, `status`, `step`, `error`, `complete` (bool) |
+| `GET /positions?account=all\|regular\|pea` | Holdings with price, value and staleness, plus cash and total. |
+| `GET /summary?period=day\|week\|month\|year&account=…` | Change over the period, net flows, dividends, interest, fees, taxes. |
+| `GET /movers?period=…&account=…` | Per-holding change over the period, largest first. |
+| `GET /dividends?since=YYYY-MM-DD&account=…` | Dividends and their total. |
+| `GET /transactions?since=…&kind=…&account=…` | Ledger entries. |
 
-Transaction rules:
+Every response is `{as_of, last_sync, complete, reconciliation, data}`. When `complete` is false (a reconciliation issue, a missing or stale price, a negative balance), treat the numbers as indicative only.
 
-- `kind`: buy, sell, dividend, interest, deposit, withdrawal, fee, tax, reward (Saveback, bonus shares), split, corporate_action (merger, spin-off, ISIN change), transfer_in, transfer_out, opening_balance.
-- Saving plan executions are `buy` with `saving_plan = true`.
-- `amount` is the signed net effect on cash (positive in, negative out), fees and taxes included. `fee` and `tax` are broken out for reporting only and never subtracted again.
-- Splits and corporate actions change quantities explicitly. Prices are stored unadjusted, so a split is never counted twice.
-- If the timeline doesn't reach back to the account's opening, an `opening_balance` row per holding and for cash sets the starting point.
+## Commands
 
-Positions and cash are derived from transactions; snapshots are the cross-check against what Trade Republic reports.
-
-## Tech stack
-
-| Layer | Choice |
+| Command | What it does |
 | --- | --- |
-| Language | Rust (stable), one binary with `sync`, `serve` and `export` subcommands via `clap` |
-| Async runtime | `tokio` |
-| Trade Republic client | pytr CLI, run with `tokio::process::Command` inside `tokio::time::timeout` |
-| Parsing | `serde` / `serde_json` for pytr events and `instruments.toml`, `csv` for the TradingView export |
-| Money | `rust_decimal` |
-| Errors | a `thiserror` enum (session expired, pytr failed, parse failed, reconciliation mismatch) in library code, `anyhow` at the binary edge |
-| Database | SQLite via `sqlx` (compile-time checked queries, built-in migrations), WAL mode and a busy timeout |
-| Prices | pytr `rates` daily; backfill provider undecided, via `reqwest` if added |
-| API | `axum` |
-| Logging | `tracing`, to the systemd journal |
-| Dashboard | TradingView Portfolios via CSV import |
+| `sync` | The daily job: timeline, import, reconciliation, prices, TradingView CSVs. |
+| `snapshot` | Holdings and cash per account, as Trade Republic reports them. |
+| `corrections-template` | Proposed corrections from the last sync, keeping existing ones. |
+| `import <all_events.json>` | Import a pytr event file without contacting Trade Republic. |
+| `prices` | Record today's price for every holding. |
+| `export --instruments <file>` | Write the TradingView CSVs. |
+| `instruments-template` | An `instruments.toml` skeleton for every ISIN seen. |
+| `summary --period week` | Value, change and movers as JSON. |
+| `serve` | The API. |
 
-pytr stays a Python CLI. The Rust binary owns everything around it: the sync job, the importer, price collection, the CSV export and the API. My default for personal backends is Effect; this repo uses Rust instead for exact decimals, strict parsing and simple Nix packaging.
+## Limitations
 
-## Nix deployment
+- **Logins expire.** Every few weeks or months, `sync` fails with "session expired". Run `pytr login --store_credentials --v2` again as the same user.
+- **Price history starts with your first sync.** Weekly figures become complete after a week.
+- **EUR only.** Positions priced in other currencies are rejected.
+- **No time-weighted returns.** Period change is value change net of deposits and withdrawals.
+- **Untested:** the TradingView `reward` rows (gifted and perk shares).
 
-- Package the app with a flake using `crane` (`packages.default`, `devShells.default` with the Rust toolchain, `sqlx-cli` and pytr). `checks` run `cargo clippy` and `cargo test`.
-- `sqlx` offline mode (`.sqlx/` query metadata in the repo), so Nix builds don't need a database.
-- pytr is a runtime dependency of the sync job; package it in the flake if nixpkgs doesn't have a usable version.
-- Ship a NixOS module: `services.portfolio-tracker.enable`, a systemd service for the API, and one oneshot sync service with a daily timer.
-- The pytr session and the database live in the service's `StateDirectory` (`/var/lib/portfolio-tracker`), writable only by the service user.
-- Wire it into `nix-config` as another homelab service, behind the existing reverse proxy and tailnet only.
-- Secrets via sops-nix, like the rest of the homelab.
+## Development
 
-## Security
+```sh
+nix develop                           # Rust toolchain, pytr, sqlx-cli, sqlite
+cargo test
+nix flake check                       # build, tests, clippy, rustfmt
+cargo sqlx prepare -- --all-targets   # after changing a SQL query
+```
 
-- Trade Republic credentials (phone number, PIN), the API token and any price API key live in sops-encrypted secrets, readable only by the service user.
-- The pytr session is mutable state, not a secret pinned in config: it stays in the `StateDirectory` with mode `0600`.
-- The service runs as its own user with systemd hardening (`ProtectSystem`, `PrivateTmp`, no extra capabilities).
-- API is read-only, token-protected, and not exposed outside the tailnet.
-- No code path that can trade; pytr is used only for read commands.
-- Back up the database and raw exports, and test a restore; they hold financial history.
+[`docs/design.md`](docs/design.md) covers the data flow, ledger, valuation and export. [`docs/trade-republic-notes.md`](docs/trade-republic-notes.md) describes what Trade Republic's data and API look like.
 
-## Roadmap
+## License
 
-1. **Phase 0: spike.** Run pytr by hand and confirm the login flow.
-   - Check that the raw events cover the full history, including fractional trades, saving plans, Saveback and any splits.
-   - Check which command writes `all_events.json`, what `pytr rates` returns, and how often it can be called.
-   - Download TradingView's sample CSV, import a few hand-made rows, and download them again to confirm the round trip and the merge behaviour.
-   - Check whether any backfill provider covers the actual holdings, and at what price.
-2. **Phase 1: ingestion.**
-   - Cargo project and flake, SQL migrations, idempotent importer with tests built from the Phase 0 event samples, reconciliation.
-   - Daily price collection starts here, because a missed day can't be collected later.
-   - Daily sync timer, failure and session-expiry alerts, backups with a tested restore.
-3. **Phase 2: TradingView.** Instrument mapping, deterministic CSV export, first full import into a TradingView portfolio.
-4. **Phase 3: valuation.** Portfolio value, period change and per-holding change, once holdings and cash reconcile. Backfill if Phase 0 found a provider worth paying for.
-5. **Phase 4: API and bot.** Read-only endpoints and token; bot sends weekly summaries with value changes, top movers and news per holding.
-6. **Phase 5: polish.** NixOS module cleanup, re-authentication docs, anything Phases 1–4 deferred.
-
-## Alternatives considered
-
-- **Custom dashboard (Grafana or a small SPA).** More control, but means building charts. TradingView does this already; revisit if the CSV workflow gets painful.
-- **[Ghostfolio](https://github.com/ghostfolio/ghostfolio).** Self-hosted and has an API, but no native Trade Republic sync and another service to run. Fallback if TradingView's plan limits or manual uploads become a problem.
-- **[Portfolio Performance](https://www.portfolio-performance.info/).** Excellent analytics and imports TR PDFs, but it's a desktop app, not a service with an API.
-- **[Wealthfolio](https://wealthfolio.app/).** Now has a [self-hosted web edition](https://wealthfolio.app/docs/guide/self-hosting/) in Docker, an HTTP API and an MCP server for agents. No Trade Republic sync, so pytr and an importer are still needed, but it could replace the local valuation, dashboard and bot API. Open question: evaluate before Phase 3.
-- **Google Finance.** No portfolio API or import, so syncing would mean browser automation. No transaction or dividend history.
-- **Google Sheets with `GOOGLEFINANCE()`.** Has an API, but poor coverage of European ETFs and exchanges, and the data lives in Google.
-
-The reason to build: automated TR ingestion, data I own, and an API a bot can use. TradingView is only the viewer; the local DB stays the source of truth.
+[MIT](LICENSE)

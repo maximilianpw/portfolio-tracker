@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO accounts (id, cash_account_number) VALUES (?, ?)\n             ON CONFLICT (id) DO UPDATE SET cash_account_number = COALESCE(excluded.cash_account_number, accounts.cash_account_number)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "e94d382c6c31eb669d09b459191a2f4ef649373345111035b5b18977497b046f"
+}

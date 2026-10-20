@@ -1,0 +1,110 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT isin, date, price, currency, basis, observed_at, venue, source FROM prices ORDER BY isin, date",
+  "describe": {
+    "columns": [
+      {
+        "name": "isin",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "prices",
+            "name": "isin"
+          }
+        }
+      },
+      {
+        "name": "date",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "prices",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "name": "price",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "prices",
+            "name": "price"
+          }
+        }
+      },
+      {
+        "name": "currency",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "prices",
+            "name": "currency"
+          }
+        }
+      },
+      {
+        "name": "basis",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "prices",
+            "name": "basis"
+          }
+        }
+      },
+      {
+        "name": "observed_at",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "prices",
+            "name": "observed_at"
+          }
+        }
+      },
+      {
+        "name": "venue",
+        "ordinal": 6,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "prices",
+            "name": "venue"
+          }
+        }
+      },
+      {
+        "name": "source",
+        "ordinal": 7,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "prices",
+            "name": "source"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "c334cf52351c7b57da1da62584f0ab0e1158b85f51ccd52c8a5f73cd9d310d39"
+}

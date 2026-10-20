@@ -1,0 +1,12 @@
+# Maps ISINs to TradingView symbols for the CSV export. Keep the real file outside the repo:
+# it lists your holdings. Generate a skeleton with `portfolio-tracker instruments-template`.
+
+[US0378331005]
+name = "Apple"
+tradingview = "NASDAQ:AAPL"
+venue = "NASDAQ"
+quote_currency = "USD"
+
+[FR0000131104]
+name = "BNP Paribas"
+tradingview = "EURONEXT:BNP"

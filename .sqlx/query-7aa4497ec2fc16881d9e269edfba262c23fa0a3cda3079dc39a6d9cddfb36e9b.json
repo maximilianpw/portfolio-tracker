@@ -1,0 +1,74 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT account, isin, derived, reported, issue FROM reconciliation_issues WHERE run_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "account",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "reconciliation_issues",
+            "name": "account"
+          }
+        }
+      },
+      {
+        "name": "isin",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "reconciliation_issues",
+            "name": "isin"
+          }
+        }
+      },
+      {
+        "name": "derived",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "reconciliation_issues",
+            "name": "derived"
+          }
+        }
+      },
+      {
+        "name": "reported",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "reconciliation_issues",
+            "name": "reported"
+          }
+        }
+      },
+      {
+        "name": "issue",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "reconciliation_issues",
+            "name": "issue"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "7aa4497ec2fc16881d9e269edfba262c23fa0a3cda3079dc39a6d9cddfb36e9b"
+}

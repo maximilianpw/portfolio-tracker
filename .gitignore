@@ -4,3 +4,6 @@
 
 # pytr exports and spike output hold real financial data
 /spike
+/data
+/instruments.toml
+/corrections.toml

@@ -1,0 +1,21 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT max(run_id) FROM (SELECT run_id FROM positions_snapshots UNION SELECT run_id FROM cash_snapshots)",
+  "describe": {
+    "columns": [
+      {
+        "name": "max(run_id)",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "aade39cc8785ed31560a8ceefc4f4598ce17f834f947516da322dd930e5b677f"
+}

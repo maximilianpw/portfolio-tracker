@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO reconciliation_issues (run_id, account, isin, derived, reported, issue) VALUES (?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "34fe3b6c2bfca848f204e9bde51eaa44f11b52127c53e8107af10c60435a5679"
+}

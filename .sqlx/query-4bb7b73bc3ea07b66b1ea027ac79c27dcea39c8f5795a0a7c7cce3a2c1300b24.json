@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO raw_events (id, ts, event_type, status, raw_json, imported_at) VALUES (?, ?, ?, ?, ?, ?)\n             ON CONFLICT (id) DO UPDATE SET ts = excluded.ts, event_type = excluded.event_type,\n                 status = excluded.status, raw_json = excluded.raw_json, imported_at = excluded.imported_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "4bb7b73bc3ea07b66b1ea027ac79c27dcea39c8f5795a0a7c7cce3a2c1300b24"
+}

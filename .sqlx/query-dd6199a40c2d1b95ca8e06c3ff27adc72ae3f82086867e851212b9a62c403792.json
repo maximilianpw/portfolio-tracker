@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT isin, name FROM instruments",
+  "describe": {
+    "columns": [
+      {
+        "name": "isin",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "instruments",
+            "name": "isin"
+          }
+        }
+      },
+      {
+        "name": "name",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "instruments",
+            "name": "name"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "dd6199a40c2d1b95ca8e06c3ff27adc72ae3f82086867e851212b9a62c403792"
+}

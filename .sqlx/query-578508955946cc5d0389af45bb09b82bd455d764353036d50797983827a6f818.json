@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO cash_snapshots (run_id, snapshot_date, account, balance) VALUES (?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "578508955946cc5d0389af45bb09b82bd455d764353036d50797983827a6f818"
+}

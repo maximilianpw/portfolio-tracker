@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO sync_runs (started_at, status) VALUES (?, 'running')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "dfd549d5b408ca1193ba8acbf6deedfe5a3039e81daaf44303a687b904698c96"
+}

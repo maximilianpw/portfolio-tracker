@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO positions_snapshots (run_id, snapshot_date, account, isin, quantity, avg_cost) VALUES (?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "bacdf04f8ce23c1a7fa61d56c782a41c671e4a17d614a06add1950dfda29b0c1"
+}

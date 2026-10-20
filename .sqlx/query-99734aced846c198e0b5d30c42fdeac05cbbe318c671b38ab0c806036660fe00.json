@@ -1,0 +1,194 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT t.event_id, t.leg, t.account, t.ts, t.date, t.isin, i.name AS \"instrument_name?\", t.kind,\n                  t.quantity, t.price, t.amount, t.fee, t.tax, t.saving_plan, t.status\n           FROM transactions t LEFT JOIN instruments i ON i.isin = t.isin\n           ORDER BY t.ts, t.event_id, t.leg",
+  "describe": {
+    "columns": [
+      {
+        "name": "event_id",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "event_id"
+          }
+        }
+      },
+      {
+        "name": "leg",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "leg"
+          }
+        }
+      },
+      {
+        "name": "account",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "account"
+          }
+        }
+      },
+      {
+        "name": "ts",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "ts"
+          }
+        }
+      },
+      {
+        "name": "date",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "name": "isin",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "isin"
+          }
+        }
+      },
+      {
+        "name": "instrument_name?",
+        "ordinal": 6,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "instruments",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "name": "kind",
+        "ordinal": 7,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "name": "quantity",
+        "ordinal": 8,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "quantity"
+          }
+        }
+      },
+      {
+        "name": "price",
+        "ordinal": 9,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "price"
+          }
+        }
+      },
+      {
+        "name": "amount",
+        "ordinal": 10,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "amount"
+          }
+        }
+      },
+      {
+        "name": "fee",
+        "ordinal": 11,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "fee"
+          }
+        }
+      },
+      {
+        "name": "tax",
+        "ordinal": 12,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "tax"
+          }
+        }
+      },
+      {
+        "name": "saving_plan",
+        "ordinal": 13,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "saving_plan"
+          }
+        }
+      },
+      {
+        "name": "status",
+        "ordinal": 14,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "status"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "99734aced846c198e0b5d30c42fdeac05cbbe318c671b38ab0c806036660fe00"
+}
